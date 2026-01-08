@@ -5,12 +5,15 @@ from PyQt5.QtCore import Qt, QPropertyAnimation, QPointF, QTimer, QDateTime, QDa
 from PyQt5.QtGui import QFont, QLinearGradient, QPainter, QBrush, QPen, QColor, QPixmap, QDesktopServices
 from datetime import datetime
 
+# Add a container widget to the thumbnail so that the mod url only open when you click directly on the image and not the borders of the widget
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
         self.set_window_properties()
         self.initUI() 
+
+        self.mod_thumbnail_label.clicked.connect(self.open_mod_url)
     
     def initUI(self):
         central_widget = QWidget()
@@ -44,16 +47,32 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.mod_title_label, 0, 0, 1, 2)
 
     def create_mod_thumbnail_label(self, main_layout):
-        self.mod_thumbnail_label = QLabel()
+        # mod_thumbnail_container = QWidget()
+        # container_layout = QVBoxLayout()
+        # mod_thumbnail_container.setLayout(container_layout)
+
+        self.mod_thumbnail_label = ClickableQLabel()
         self.mod_thumbnail_label.setAlignment(Qt.AlignCenter)
-        self.mod_thumbnail_label.setStyleSheet("background-color: #2A2A2A")
+        self.mod_thumbnail_label.setStyleSheet("""
+                                               ClickableQLabel {
+                                                background-color: #2A2A2A;
+                                                border: 2px solid #4A1A1A
+                                               }
+                                               ClickableQLabel:hover {
+                                                background-color: #3E3E3E
+                                               }
+                                               """)
 
         mod_thumbnail = QPixmap("l4d2_campaign_selector/ice_canyon.jpg")
         mod_thumbnail_size = QSize(int(self.mod_thumbnail_label.width() * 0.85), int(self.mod_thumbnail_label.height() * 0.85))
         mod_thumbnail = mod_thumbnail.scaled(mod_thumbnail_size, Qt.IgnoreAspectRatio, Qt.FastTransformation)
         self.mod_thumbnail_label.setPixmap(mod_thumbnail)
+
+        # mod_thumbnail_container.setFixedSize(self.mod_thumbnail_label.width(), self.mod_thumbnail_label.height())
         
         main_layout.addWidget(self.mod_thumbnail_label, 1, 0, 2, 1)
+        # main_layout.addWidget(mod_thumbnail_container, 1, 0, 2, 1)
+        # container_layout.addWidget(self.mod_thumbnail_label)
 
     def create_mod_rating_label(self, main_layout):
         mod_rating_image = QPixmap("l4d2_campaign_selector/4-star.png")
@@ -93,33 +112,61 @@ class MainWindow(QMainWindow):
 
     def create_buttons(self, main_layout):
         self.no_button = QPushButton("No")
+        self.no_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.no_button.setFont(QFont("Chewy", 20))
         self.no_button.setStyleSheet("""
-            background-color: #6C3434; 
-            color: #F2F2E6
-        """)
-        self.no_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+                                     QPushButton {
+                                        background-color: #6C3434; 
+                                        color: #F2F2E6
+                                     }
+                                     QPushButton:hover {
+                                        background-color: #804848
+                                     }
+                                     QPushButton:pressed {
+                                        background-color: #582020
+                                     }
+                                     """)
         main_layout.addWidget(self.no_button, 3, 0, 1, 1)
 
         self.yes_button = QPushButton("Yes")
+        self.yes_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.yes_button.setFont(QFont("Chewy", 20))
         self.yes_button.setStyleSheet("""
-            background-color: #B05454; 
-            color: #F2F2E6
-        """)
-        self.yes_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+                                      QPushButton {
+                                        background-color: #B05454; 
+                                        color: #F2F2E6
+                                      }
+                                      QPushButton:hover {
+                                        background-color: #C46868
+                                      }
+                                      QPushButton:pressed {
+                                        background-color: #9C4040
+                                      }
+                                      """)
         main_layout.addWidget(self.yes_button, 3, 1, 1, 1)
         main_layout.setRowStretch(3, 1)
 
         self.maybe_button = QPushButton("Maybe")
+        self.maybe_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.maybe_button.setFont(QFont("Chewy", 20))
         self.maybe_button.setStyleSheet("""
-            background-color: #8E4444; 
-            color: #F2F2E6
-        """)
-        self.maybe_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+                                        QPushButton {
+                                            background-color: #8E4444; 
+                                            color: #F2F2E6
+                                        }
+                                        QPushButton:hover {
+                                            background-color: #A25858
+                                        }
+                                        QPushButton:pressed {
+                                            background-color: #7A3030
+                                        }
+                                        """)
         main_layout.addWidget(self.maybe_button, 4, 0, 1, 2)
         main_layout.setRowStretch(4, 1)
+
+    def open_mod_url(self):
+        """Opens the current mod's url in your browser."""
+        QDesktopServices.openUrl(QUrl("https://steamcommunity.com/sharedfiles/filedetails/?id=3634176047&searchtext="))
 
     def resize_mod_thumbnail(self):
         if hasattr(self, "mod_thumbnail_label") == True:
@@ -132,6 +179,17 @@ class MainWindow(QMainWindow):
         self.resize_mod_thumbnail()
 
         return super().resizeEvent(a0)
+
+class ClickableQLabel(QLabel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setCursor(Qt.PointingHandCursor)
+
+    clicked = pyqtSignal()
+
+    def mousePressEvent(self, ev):
+        self.clicked.emit()
+        return super().mousePressEvent(ev)
 
 app = QApplication([])
 window = MainWindow()
