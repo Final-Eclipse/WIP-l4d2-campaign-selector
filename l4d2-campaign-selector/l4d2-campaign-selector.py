@@ -1,26 +1,42 @@
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QWidget, QSizePolicy, QVBoxLayout, QLabel, 
                              QHBoxLayout, QGraphicsDropShadowEffect, QGraphicsEffect, QTextEdit,
                              QGridLayout, QPushButton)
-from PyQt5.QtCore import Qt, QPropertyAnimation, QPointF, QTimer, QDateTime, QDate, pyqtSignal, QUrl, QSize
+from PyQt5.QtCore import Qt, QPropertyAnimation, QPointF, QTimer, QDateTime, QDate, pyqtSignal, QUrl, QSize, QTimer
 from PyQt5.QtGui import QFont, QLinearGradient, QPainter, QBrush, QPen, QColor, QPixmap, QDesktopServices
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from datetime import datetime
 # from l4d2_campaign_selector.decide_campaign import ModDecider
-from decide_campaign import ModDecider
+# from decide_campaign import ModDecider
+from mod_display_logic import ModDisplayLogic
+from left_4_dead_2_scraper.l4d2_scraper import Scraper
 
 # Add a container widget to the thumbnail so that the mod url only open when you click directly on the image and not the borders of the widget
+
+# Add functionality for the maybe button to add it to the maybe text file
+
+# Handle what happens when there are no mods left, go to all mods that were in maybe text file, then 
+# after all mods have been exhausted put a placeholder thumbnail, title, rating, and description
+
+# Either download all possible rating images (0, 1, 2, 3, 4, 5 stars) and display them based on the 
+# mod's rating url or use requests to get the content of the rating image url and display it (requests 
+# is currently being used, most likely slower than storing images because it has to make requests)
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.l4d2_scraper = Scraper()
+        self.mod_display_logic = ModDisplayLogic()
+
+
         self.set_window_properties()
         self.initUI() 
+        self.updateUI()
 
         self.mod_thumbnail_label.clicked.connect(self.open_mod_url)
-
-        # self.mod_decider = ModDecider()
-
-        # self.set_mod_description_label()
+        
+        self.yes_button.clicked.connect(self.button_pressed)
+        self.no_button.clicked.connect(self.button_pressed)
+        self.maybe_button.clicked.connect(self.button_pressed)
     
     def initUI(self):
         central_widget = QWidget()
@@ -33,6 +49,28 @@ class MainWindow(QMainWindow):
         self.create_mod_rating_label(main_layout=main_layout)
         self.create_mod_description_label(main_layout=main_layout)
         self.create_buttons(main_layout=main_layout)
+    
+    def updateUI(self):
+        """Updates the User Interface with new information for every mod."""
+        self.mod_display_logic.update_current_mod()
+        current_mod_details = self.mod_display_logic.get_current_mod_details()
+
+        self.mod_title_label.setText(current_mod_details[0])
+
+        mod_thumbnail = QPixmap()
+        mod_thumbnail.loadFromData(self.l4d2_scraper.get_mod_thumbnail_image_in_bytes(current_mod_details[1]))
+        mod_thumbnail_size = QSize(int(self.mod_thumbnail_label.width() * 0.85), int(self.mod_thumbnail_label.height() * 0.85))
+        mod_thumbnail = mod_thumbnail.scaled(mod_thumbnail_size, Qt.KeepAspectRatio, Qt.FastTransformation)
+        self.mod_thumbnail_label.setPixmap(mod_thumbnail)
+
+        mod_rating_image = QPixmap()
+        mod_rating_image_url = self.l4d2_scraper.get_mod_rating_image_in_bytes(current_mod_details[2])
+        mod_rating_image.loadFromData(mod_rating_image_url)
+        mod_rating_image = mod_rating_image.scaled(self.mod_thumbnail_label.width(), self.mod_thumbnail_label.height(), Qt.KeepAspectRatio, Qt.FastTransformation)
+        self.mod_rating_label.setPixmap(mod_rating_image)
+
+        self.mod_url = current_mod_details[3]
+        self.mod_description_label.setText(current_mod_details[4])
     
     def set_window_properties(self):
         self.setMinimumSize(700, 500)
@@ -82,11 +120,12 @@ class MainWindow(QMainWindow):
         # container_layout.addWidget(self.mod_thumbnail_label)
 
     def create_mod_rating_label(self, main_layout):
-        mod_rating_image = QPixmap("l4d2_campaign_selector/4-star.png")
-        mod_rating_image = mod_rating_image.scaled(self.mod_thumbnail_label.width(), self.mod_thumbnail_label.height(), Qt.KeepAspectRatio, Qt.FastTransformation)
+        # mod_rating_image = QPixmap()
+        # mod_rating_image = mod_rating_image.scaled(self.mod_thumbnail_label.width(), self.mod_thumbnail_label.height(), Qt.KeepAspectRatio, Qt.FastTransformation)
 
         self.mod_rating_label = QLabel()
-        self.mod_rating_label.setPixmap(mod_rating_image)
+        self.mod_rating_label.setFixedSize(QSize(848, 180))
+        # self.mod_rating_label.setPixmap(mod_rating_image)
         self.mod_rating_label.setAlignment(Qt.AlignCenter)
         self.mod_rating_label.setStyleSheet("""
             background-color: #2A2A2A; 
@@ -101,8 +140,8 @@ class MainWindow(QMainWindow):
         main_layout.setRowStretch(1, 1)
 
     def create_mod_description_label(self, main_layout):
-        # self.mod_description_label = QLabel()
-        self.mod_description_label = QLabel("\"The road is covered with snow, so the survivors will have to make their way through the icy canyon in search of salvation.\" Hello friends! Last December, I created the \"Ice Canyon\" map for the game Battle Grounds III. I decided to use it as a basis and cr...")
+        self.mod_description_label = QLabel()
+        self.mod_description_label.setFixedSize(848, 600)
         self.mod_description_label.setFont(QFont("Chewy", 25))
         self.mod_description_label.setAlignment(Qt.AlignTop)
         self.mod_description_label.setWordWrap(True)
@@ -119,9 +158,10 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.mod_description_label, 2, 1, 1, 1)
 
     def create_buttons(self, main_layout):
+        """Creates the no, yes, and maybe buttons."""
         self.no_button = QPushButton("No")
         self.no_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.no_button.setFont(QFont("Chewy", 20))
+        self.no_button.setFont(QFont("Chewy", 45))
         self.no_button.setStyleSheet("""
                                      QPushButton {
                                         background-color: #6C3434; 
@@ -138,7 +178,7 @@ class MainWindow(QMainWindow):
 
         self.yes_button = QPushButton("Yes")
         self.yes_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.yes_button.setFont(QFont("Chewy", 20))
+        self.yes_button.setFont(QFont("Chewy", 45))
         self.yes_button.setStyleSheet("""
                                       QPushButton {
                                         background-color: #B05454; 
@@ -156,7 +196,7 @@ class MainWindow(QMainWindow):
 
         self.maybe_button = QPushButton("Maybe")
         self.maybe_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.maybe_button.setFont(QFont("Chewy", 20))
+        self.maybe_button.setFont(QFont("Chewy", 45))
         self.maybe_button.setStyleSheet("""
                                         QPushButton {
                                             background-color: #8E4444; 
@@ -172,27 +212,29 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.maybe_button, 4, 0, 1, 2)
         main_layout.setRowStretch(4, 1)
 
+    def button_pressed(self):
+        """Is called as a slot when a clicked signal is sent from any of the three buttons."""
+        match self.sender():
+            case self.yes_button:
+                self.mod_display_logic.add_current_mod_to_liked()
+            case self.no_button:
+                self.mod_display_logic.add_current_mod_to_disliked()
+            # case self.maybe_button:
+            #     self.mod_display_logic.add_current_mod_maybe()
+        self.updateUI()
+
     def open_mod_url(self):
         """Opens the current mod's url in your browser."""
-        QDesktopServices.openUrl(QUrl("https://steamcommunity.com/sharedfiles/filedetails/?id=3634176047&searchtext="))
+        QDesktopServices.openUrl(QUrl(self.mod_url))
 
     def resize_mod_thumbnail(self):
-        if hasattr(self, "mod_thumbnail_label") == True:
-            self.set_mod_thumbnail_image()
+        if hasattr(self, "mod_thumbnail_label") == True:    # Prevents AttributeError when starting application because this runs immediately before self.mod_thumbnail_label is created
+            self.updateUI()
 
     def resizeEvent(self, a0):
-        self.resize_mod_thumbnail()
+        QTimer.singleShot(1000, self.resize_mod_thumbnail)  # Resizes widgets after 1 second of resizing the window to prevent lag from resizing all widgets instantly when window size changes
 
         return super().resizeEvent(a0)
-
-    def set_mod_thumbnail_image(self):
-        mod_thumbnail = QPixmap("l4d2_campaign_selector/ice_canyon.jpg")
-        mod_thumbnail_size = QSize(int(self.mod_thumbnail_label.width() * 0.85), int(self.mod_thumbnail_label.height() * 0.85))
-        mod_thumbnail = mod_thumbnail.scaled(mod_thumbnail_size, Qt.IgnoreAspectRatio, Qt.FastTransformation)
-        self.mod_thumbnail_label.setPixmap(mod_thumbnail)
-
-    # def set_mod_description_label(self):
-    #     self.mod_decider.all_mods
 
 class ClickableQLabel(QLabel):
     def __init__(self, *args, **kwargs):
@@ -209,8 +251,3 @@ app = QApplication([])
 window = MainWindow()
 window.show()
 app.exec()
-
-# manager = QNetworkAccessManager()
-# url = "https://images.steamusercontent.com/ugc/11267625434000555311/D397044B8584358CDE1D1DBB16EFF40B60F8B430/?imw=200&imh=200&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=true"
-# request = QNetworkRequest(url)
-# reply = manager.get(request)
