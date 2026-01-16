@@ -8,23 +8,10 @@ from datetime import datetime
 from mod_display_logic import ModDisplayLogic
 from left_4_dead_2_scraper.l4d2_scraper import Scraper
 
-# Add a container widget to the thumbnail so that the mod url only open when you click directly on the image and not the borders of the widget
-
-# Add functionality for the maybe button to add it to the maybe text file
-
 # Handle what happens when there are no mods left, go to all mods that were in maybe text file and loop through those.  
 # Make sure to delete them from the maybe text file or rewrite the file with that mod gone
 # Make sure to add the mod to liked or disliked text file
 # Then, after all mods have been exhausted put a placeholder thumbnail, title, rating, and description
-
-# Either download all possible rating images (0, 1, 2, 3, 4, 5 stars) and display them based on the 
-# mod's rating url or use requests to get the content of the rating image url and display it (requests 
-# is currently being used, most likely slower than storing images because it has to make requests)
-
-# Instead of writing the name of the mod to the liked and disliked files,
-# Create a dictionary and write in json instead
-
-# Add a "Mods Left" widget to the GUI
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -43,43 +30,64 @@ class MainWindow(QMainWindow):
         self.maybe_button.clicked.connect(self.button_pressed)
     
     def initUI(self):
+        """Initializes the user interface by creating a layout and widgets."""
+        # Create main layout.
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QGridLayout()
         central_widget.setLayout(main_layout)
 
+        # Create all widgets.
         self.create_mod_title_label(main_layout=main_layout)
         self.create_mod_thumbnail_label(main_layout=main_layout)
         self.create_mod_rating_label(main_layout=main_layout)
         self.create_mod_description_label(main_layout=main_layout)
         self.create_buttons(main_layout=main_layout)
+        self.create_mods_left_label(main_layout=main_layout)
     
     def updateUI(self):
-        """Updates the User Interface with new information for every mod."""
+        """Updates the user interface with new information for every mod."""
         self.mod_display_logic.update_current_mod()
         current_mod_details = self.mod_display_logic.get_current_mod_details()
 
+        # Updates the mod's name.
         self.mod_title_label.setText(current_mod_details[0])
 
+        # Updates the total number and number of mods left.
+        total_number_of_mods = self.mod_display_logic.get_total_number_of_mods()
+        number_of_mods_left = self.mod_display_logic.get_number_of_mods_left()
+        self.mods_left_label.setText(f"Total Mods- {total_number_of_mods}   Mods Left- {number_of_mods_left}")
+
+        # Updates the mod's thumbnail image.
         mod_thumbnail = QPixmap()
         mod_thumbnail.loadFromData(self.l4d2_scraper.get_mod_thumbnail_image_in_bytes(current_mod_details[1]))
         mod_thumbnail_size = QSize(int(self.mod_thumbnail_label.width() * 0.85), int(self.mod_thumbnail_label.height() * 0.85))
         mod_thumbnail = mod_thumbnail.scaled(mod_thumbnail_size, Qt.KeepAspectRatio, Qt.FastTransformation)
         self.mod_thumbnail_label.setPixmap(mod_thumbnail)
 
+        # Updates the mod's rating image.
         mod_rating_image = self.change_mod_rating_image(current_mod_details[2])
         self.mod_rating_label.setPixmap(mod_rating_image)
 
+        # Updates the mod's url.
         self.mod_url = current_mod_details[3]
+
+        # Updates the mod's description.
         self.mod_description_label.setText(current_mod_details[4])
     
     def set_window_properties(self):
+        """Sets various properties of the application's window."""
         self.setMinimumSize(700, 500)
         self.setStyleSheet("background-color: #1E0000")
         self.setContentsMargins(100, 0, 100, 0)
         self.showMaximized()
 
     def create_mod_title_label(self, main_layout):
+        """
+        Creates the QLabel() widget that displays the name of the current mod.
+        
+        :param main_layout: The main layout that the entire application is based off of.
+        """
         self.mod_title_label = QLabel("Ice Canyon")
         self.mod_title_label.setAlignment(Qt.AlignCenter)
         self.mod_title_label.setFont(QFont("Chewy", 25))
@@ -93,11 +101,12 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.mod_title_label, 0, 0, 1, 2)
 
     def create_mod_thumbnail_label(self, main_layout):
-        # mod_thumbnail_container = QWidget()
-        # container_layout = QVBoxLayout()
-        # mod_thumbnail_container.setLayout(container_layout)
-
-        self.mod_thumbnail_label = ClickableQLabel()
+        """
+        Creates the ClickableQLabel() widget that displays the thumbnail image of the current mod.
+        
+        :param main_layout: The main layout that the entire application is based off of.
+        """
+        self.mod_thumbnail_label = ClickableQLabel()    # A class that inherits from QLabel() that allows it to be clicked.
         self.mod_thumbnail_label.setAlignment(Qt.AlignCenter)
         self.mod_thumbnail_label.setStyleSheet("""
                                                ClickableQLabel {
@@ -108,25 +117,17 @@ class MainWindow(QMainWindow):
                                                 background-color: #3E3E3E
                                                }
                                                """)
-
-        # mod_thumbnail = QPixmap("l4d2_campaign_selector/ice_canyon.jpg")
-        # mod_thumbnail_size = QSize(int(self.mod_thumbnail_label.width() * 0.85), int(self.mod_thumbnail_label.height() * 0.85))
-        # mod_thumbnail = mod_thumbnail.scaled(mod_thumbnail_size, Qt.IgnoreAspectRatio, Qt.FastTransformation)
-        # self.mod_thumbnail_label.setPixmap(mod_thumbnail)
-
-        # mod_thumbnail_container.setFixedSize(self.mod_thumbnail_label.width(), self.mod_thumbnail_label.height())
-        
-        main_layout.addWidget(self.mod_thumbnail_label, 1, 0, 2, 1)
-        # main_layout.addWidget(mod_thumbnail_container, 1, 0, 2, 1)
-        # container_layout.addWidget(self.mod_thumbnail_label)
+ 
+        main_layout.addWidget(self.mod_thumbnail_label, 2, 0, 2, 1)
 
     def create_mod_rating_label(self, main_layout):
-        # mod_rating_image = QPixmap()
-        # mod_rating_image = mod_rating_image.scaled(self.mod_thumbnail_label.width(), self.mod_thumbnail_label.height(), Qt.KeepAspectRatio, Qt.FastTransformation)
-
+        """
+        Creates the QLabel() widget that displays the rating image of the current mod.
+        
+        :param main_layout: The main layout that the entire application is based off of.
+        """
         self.mod_rating_label = QLabel()
         self.mod_rating_label.setFixedSize(QSize(848, 180))
-        # self.mod_rating_label.setPixmap(mod_rating_image)
         self.mod_rating_label.setAlignment(Qt.AlignCenter)
         self.mod_rating_label.setStyleSheet("""
             background-color: #2A2A2A; 
@@ -137,10 +138,15 @@ class MainWindow(QMainWindow):
             padding-bottom: 15px
         """)
 
-        main_layout.addWidget(self.mod_rating_label, 1, 1, 1, 1)
+        main_layout.addWidget(self.mod_rating_label, 2, 1, 1, 1)
         main_layout.setRowStretch(1, 1)
 
     def create_mod_description_label(self, main_layout):
+        """
+        Creates the QLabel() widget that displays the description of the current mod.
+        
+        :param main_layout: The main layout that the entire application is based off of.
+        """
         self.mod_description_label = QLabel()
         self.mod_description_label.setFixedSize(848, 600)
         self.mod_description_label.setFont(QFont("Chewy", 25))
@@ -156,10 +162,14 @@ class MainWindow(QMainWindow):
         """)
 
         main_layout.setRowStretch(2, 10)
-        main_layout.addWidget(self.mod_description_label, 2, 1, 1, 1)
+        main_layout.addWidget(self.mod_description_label, 3, 1, 1, 1)
 
     def create_buttons(self, main_layout):
-        """Creates the no, yes, and maybe buttons."""
+        """
+        Creates the QPushButton() widgets that allow the user to select no, yes, or maybe to a mod.
+        
+        :param main_layout: The main layout that the entire application is based off of.
+        """
         self.no_button = QPushButton("No")
         self.no_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.no_button.setFont(QFont("Chewy", 45))
@@ -175,7 +185,7 @@ class MainWindow(QMainWindow):
                                         background-color: #582020
                                      }
                                      """)
-        main_layout.addWidget(self.no_button, 3, 0, 1, 1)
+        main_layout.addWidget(self.no_button, 4, 0, 1, 1)
 
         self.yes_button = QPushButton("Yes")
         self.yes_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -192,7 +202,7 @@ class MainWindow(QMainWindow):
                                         background-color: #9C4040
                                       }
                                       """)
-        main_layout.addWidget(self.yes_button, 3, 1, 1, 1)
+        main_layout.addWidget(self.yes_button, 4, 1, 1, 1)
         main_layout.setRowStretch(3, 1)
 
         self.maybe_button = QPushButton("Maybe")
@@ -210,8 +220,26 @@ class MainWindow(QMainWindow):
                                             background-color: #7A3030
                                         }
                                         """)
-        main_layout.addWidget(self.maybe_button, 4, 0, 1, 2)
+        main_layout.addWidget(self.maybe_button, 5, 0, 1, 2)
         main_layout.setRowStretch(4, 1)
+
+    def create_mods_left_label(self, main_layout):
+        """
+        Creates the QLabel() widget that displays the total number of mods and number of mods left.
+        
+        :param main_layout: The main layout that the entire application is based off of.
+        """
+        self.mods_left_label = QLabel()
+        self.mods_left_label.setFont(QFont("Chewy", 25))
+        self.mods_left_label.setAlignment(Qt.AlignCenter)
+        self.mods_left_label.setStyleSheet("""
+            color: #F2F2E6; 
+            background-color: #2A2A2A; 
+            border: 2px solid #4A1A1A
+        """)
+
+        main_layout.setRowStretch(5, 1)
+        main_layout.addWidget(self.mods_left_label, 1, 0, 1, 2)
 
     def get_mod_rating_pixmaps(self):
         """Returns a dictionary of urls for each possible mod rating image."""
@@ -254,18 +282,23 @@ class MainWindow(QMainWindow):
         return mod_rating_image
 
     def button_pressed(self):
-        """Is called as a slot when a clicked signal is sent from any of the three buttons."""
+        """
+        Is called whenever a button is clicked.
+        
+        Then, it calls a method from ModDisplayLogic to add the current mod 
+        to a json file corresponding with the button clicked.
+        """
         match self.sender():
             case self.yes_button:
                 self.mod_display_logic.add_current_mod_to_liked()
             case self.no_button:
                 self.mod_display_logic.add_current_mod_to_disliked()
-            # case self.maybe_button:
-            #     self.mod_display_logic.add_current_mod_maybe()
+            case self.maybe_button:
+                self.mod_display_logic.add_current_mod_to_maybe()
         self.updateUI()
 
     def open_mod_url(self):
-        """Opens the current mod's url in your browser."""
+        """Opens the current mod's url in the user's browser."""
         QDesktopServices.openUrl(QUrl(self.mod_url))
 
     def resize_mod_thumbnail(self):
@@ -286,6 +319,7 @@ class MainWindow(QMainWindow):
         return super().resizeEvent(a0)
 
 class ClickableQLabel(QLabel):
+    """A class that inherits from QLabel() that allows it to be clicked."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setCursor(Qt.PointingHandCursor)
@@ -293,6 +327,7 @@ class ClickableQLabel(QLabel):
     clicked = pyqtSignal()
 
     def mousePressEvent(self, ev):
+        """Called when a ClickableQLabel() is clicked."""
         self.clicked.emit()
         return super().mousePressEvent(ev)
 
