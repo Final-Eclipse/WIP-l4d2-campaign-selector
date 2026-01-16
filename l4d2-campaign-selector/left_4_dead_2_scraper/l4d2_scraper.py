@@ -1,19 +1,10 @@
 from bs4 import BeautifulSoup
 import requests
-from pprint import pprint
 from time import sleep
 from html import unescape
 import json
 from random import randint
 import keyboard
-
-# Repeat scraps for every page of mods
-
-# Display unicode instead of showing \u78a7 such as in some mod descriptions
-
-# Go into each mod individually and get the full length description and preview images (not the thumbnail)
-
-# Make test template in PyQt5
 
 # Will show less mods versus being signed into Steam to hide NSFW 
 class Scraper():
